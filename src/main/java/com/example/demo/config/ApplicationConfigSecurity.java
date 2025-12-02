@@ -2,6 +2,7 @@ package com.example.demo.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.User;
@@ -21,14 +22,13 @@ public class ApplicationConfigSecurity {
         System.out.println("✅ InMemory users loaded successfully!");
     }
 
-
-     // 1) Password encoder (bcrypt)
+    // 1) Password encoder (bcrypt)
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
-    // hard coded
+    // hard coded Memory Security
     @Bean
     public InMemoryUserDetailsManager userDetailsManager() {
 
@@ -40,7 +40,7 @@ public class ApplicationConfigSecurity {
 
         UserDetails moatia = User.builder()
                 .username("moatia")
-                .password(passwordEncoder().encode("111")) 
+                .password(passwordEncoder().encode("111"))
                 .roles("EMPLOYEE", "MANAGER")
                 .build();
 
@@ -55,12 +55,15 @@ public class ApplicationConfigSecurity {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
+        // the order of request matchers does matter !
         http
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/api/**").hasAllRoles("EMPLOYEE", "MANAGER", "ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
                         .anyRequest().authenticated())
                 .formLogin(Customizer.withDefaults()) // Enables login form
                 .httpBasic(Customizer.withDefaults()) // Enables basic auth popup (Postman)
-                .csrf(csrf -> csrf.disable()); // Disable CSRF for dev/testing
+                .csrf(csrf -> csrf.disable()); // Disable CSRF for dev/testing only
 
         return http.build();
     }
