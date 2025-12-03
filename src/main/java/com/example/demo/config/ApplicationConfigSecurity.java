@@ -14,58 +14,86 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import jakarta.annotation.PostConstruct;
 
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+
 @Configuration
 public class ApplicationConfigSecurity {
 
-    @PostConstruct
-    public void testUsers() {
-        System.out.println("✅ InMemory users loaded successfully!");
-    }
+        @PostConstruct
+        public void testUsers() {
+                System.out.println("✅ InMemory users loaded successfully!");
+        }
 
-    // 1) Password encoder (bcrypt)
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+        // 1) Password encoder (bcrypt)
+        @Bean
+        public PasswordEncoder passwordEncoder() {
+                return new BCryptPasswordEncoder();
+        }
 
-    // hard coded Memory Security
-    @Bean
-    public InMemoryUserDetailsManager userDetailsManager() {
+        // hard coded Memory Security
+        @Bean
+        public InMemoryUserDetailsManager userDetailsManager() {
 
-        UserDetails ismial = User.builder()
-                .username("ismail")
-                .password("{noop}111")
-                .roles("EMPLOYEE")
-                .build();
+                UserDetails ismial = User.builder()
+                                .username("ismail")
+                                .password("{noop}111")
+                                .roles("EMPLOYEE")
+                                .build();
 
-        UserDetails moatia = User.builder()
-                .username("moatia")
-                .password(passwordEncoder().encode("111"))
-                .roles("EMPLOYEE", "MANAGER")
-                .build();
+                UserDetails moatia = User.builder()
+                                .username("moatia")
+                                .password(passwordEncoder().encode("111"))
+                                .roles("EMPLOYEE", "MANAGER")
+                                .build();
 
-        UserDetails genius = User.builder()
-                .username("genius")
-                .password("{noop}111")
-                .roles("EMPLOYEE", "MANAGER", "ADMIN")
-                .build();
-        return new InMemoryUserDetailsManager(ismial, moatia, genius);
-    }
+                UserDetails genius = User.builder()
+                                .username("genius")
+                                .password("{noop}111")
+                                .roles("EMPLOYEE", "MANAGER", "ADMIN")
+                                .build();
+                return new InMemoryUserDetailsManager(ismial, moatia, genius);
+        }
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        @Bean
+        public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-        // the order of request matchers does matter !
-        http
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/**").hasAllRoles("EMPLOYEE", "MANAGER", "ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
-                .formLogin(Customizer.withDefaults()) // Enables login form
-                .httpBasic(Customizer.withDefaults()) // Enables basic auth popup (Postman)
-                .csrf(csrf -> csrf.disable()); // Disable CSRF for dev/testing only
+                // the order of request matchers does matter !
+                http
+                                .authorizeHttpRequests(auth -> auth
+                                                // Allow login page and static resources
+                                                .requestMatchers("/login", "/error", "/css/**", "/js/**", "/images/**")
+                                                .permitAll()
 
-        return http.build();
-    }
+                                                // Protect API endpoints
+                                                .requestMatchers(HttpMethod.DELETE, "/api/**").hasRole("ADMIN")
+                                                .requestMatchers("/api/**",
+                                                                "/courses")
+                                                .hasAnyRole("EMPLOYEE", "MANAGER", "ADMIN")
+
+                                                // Anything else must be authenticated
+                                                .anyRequest().authenticated())
+
+                                // .formLogin(Customizer.withDefaults()) // default login form
+                                .formLogin(form -> form.loginPage("/login").permitAll()
+                                                .defaultSuccessUrl("/courses"))
+
+                                // Remeber me
+                                .rememberMe(remember -> remember
+                                                .key("super-secret-key")
+                                                .tokenValiditySeconds(2))
+
+                                // logout
+                                .logout(logout -> logout
+                                                .logoutUrl("/logout")
+                                                .logoutSuccessUrl("/login?logout")
+                                                .deleteCookies("JSESSIONID", "remember-me")
+                                                .invalidateHttpSession(true)
+                                                .permitAll())
+
+                                .httpBasic(Customizer.withDefaults()) // Postman support
+                                .csrf(csrf -> csrf.disable());
+
+                return http.build();
+        }
 
 }
