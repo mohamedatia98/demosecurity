@@ -18,11 +18,13 @@ public class AuthProviderConfig {
         this.userDetailsService = userDetailsService;
     }
 
+    // each authenication manager can have many authentication Provider .
+
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider provider = new DaoAuthenticationProvider();
-        provider.setUserDetailsService(userDetailsService);
-        provider.setPasswordEncoder(new BCryptPasswordEncoder());
+        provider.setUserDetailsService(userDetailsService);                       // get the data from user 
+        provider.setPasswordEncoder(new BCryptPasswordEncoder());                 // get the password 
         return provider;
     }
 
